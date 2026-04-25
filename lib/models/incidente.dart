@@ -1,55 +1,55 @@
 class Incidente {
   final int id;
-  final int clienteId;
+  final int? clienteId;
   final int? vehiculoId;
-  final double ubicacionLat;
-  final double ubicacionLng;
+  final double? ubicacionLat;
+  final double? ubicacionLng;
   final String? especialidadIa;
   final String? descripcionIa;
   final String? prioridad;
-  final String estado;
+  final String? estado;
   final String? descripcionOriginal;
   final String? descripcion;
   final int? requiereMasEvidencia;
   final String? mensajeSolicitud;
-  final DateTime fechaCreacion;
-  final DateTime fechaActualizacion;
+  final DateTime? fechaCreacion;
+  final DateTime? fechaActualizacion;
 
   Incidente({
     required this.id,
-    required this.clienteId,
+    this.clienteId,
     this.vehiculoId,
-    required this.ubicacionLat,
-    required this.ubicacionLng,
+    this.ubicacionLat,
+    this.ubicacionLng,
     this.especialidadIa,
     this.descripcionIa,
     this.prioridad,
-    required this.estado,
+    this.estado,
     this.descripcionOriginal,
     this.descripcion,
     this.requiereMasEvidencia,
     this.mensajeSolicitud,
-    required this.fechaCreacion,
-    required this.fechaActualizacion,
+    this.fechaCreacion,
+    this.fechaActualizacion,
   });
 
   factory Incidente.fromJson(Map<String, dynamic> json) {
     return Incidente(
-      id: json['id'],
+      id: json['id'] ?? 0,
       clienteId: json['cliente_id'],
       vehiculoId: json['vehiculo_id'],
-      ubicacionLat: (json['ubicacion_lat'] as num).toDouble(),
-      ubicacionLng: (json['ubicacion_lng'] as num).toDouble(),
+      ubicacionLat: (json['ubicacion_lat'] as num?)?.toDouble() ?? 0.0,
+      ubicacionLng: (json['ubicacion_lng'] as num?)?.toDouble() ?? 0.0,
       especialidadIa: json['especialidad_ia'],
       descripcionIa: json['descripcion_ia'],
       prioridad: json['prioridad'],
-      estado: json['estado'],
+      estado: json['estado'] ?? 'reportado',
       descripcionOriginal: json['descripcion_original'],
       descripcion: json['descripcion'],
       requiereMasEvidencia: json['requiere_mas_evidencia'],
       mensajeSolicitud: json['mensaje_solicitud'],
-      fechaCreacion: DateTime.parse(json['fecha_creacion']),
-      fechaActualizacion: DateTime.parse(json['fecha_actualizacion']),
+      fechaCreacion: json['fecha_creacion'] != null ? DateTime.tryParse(json['fecha_creacion']) : null,
+      fechaActualizacion: json['fecha_actualizacion'] != null ? DateTime.tryParse(json['fecha_actualizacion']) : null,
     );
   }
 
@@ -68,31 +68,31 @@ class Incidente {
       'descripcion': descripcion,
       'requiere_mas_evidencia': requiereMasEvidencia,
       'mensaje_solicitud': mensajeSolicitud,
-      'fecha_creacion': fechaCreacion.toIso8601String(),
-      'fecha_actualizacion': fechaActualizacion.toIso8601String(),
+      'fecha_creacion': fechaCreacion?.toIso8601String(),
+      'fecha_actualizacion': fechaActualizacion?.toIso8601String(),
     };
   }
 }
 
 class Evidencia {
-  final int id;
-  final int incidenteId;
-  final String tipo;
+  final int? id;
+  final int? incidenteId;
+  final String? tipo;
   final String? urlArchivo;
   final String? contenido;
   final String? transcripcion;
   final String? descripcion;
-  final DateTime fechaSubida;
+  final DateTime? fechaSubida;
 
   Evidencia({
-    required this.id,
-    required this.incidenteId,
-    required this.tipo,
+    this.id,
+    this.incidenteId,
+    this.tipo,
     this.urlArchivo,
     this.contenido,
     this.transcripcion,
     this.descripcion,
-    required this.fechaSubida,
+    this.fechaSubida,
   });
 
   factory Evidencia.fromJson(Map<String, dynamic> json) {
@@ -104,24 +104,24 @@ class Evidencia {
       contenido: json['contenido'],
       transcripcion: json['transcripcion'],
       descripcion: json['descripcion'],
-      fechaSubida: DateTime.parse(json['fecha_subida']),
+      fechaSubida: json['fecha_subida'] != null ? DateTime.tryParse(json['fecha_subida']) : null,
     );
   }
 }
 
 class HistoriaIncidente {
-  final int id;
-  final int incidenteId;
-  final String titulo;
+  final int? id;
+  final int? incidenteId;
+  final String? titulo;
   final String? descripcion;
-  final DateTime fechaHora;
+  final DateTime? fechaHora;
 
   HistoriaIncidente({
-    required this.id,
-    required this.incidenteId,
-    required this.titulo,
+    this.id,
+    this.incidenteId,
+    this.titulo,
     this.descripcion,
-    required this.fechaHora,
+    this.fechaHora,
   });
 
   factory HistoriaIncidente.fromJson(Map<String, dynamic> json) {
@@ -130,40 +130,40 @@ class HistoriaIncidente {
       incidenteId: json['incidente_id'],
       titulo: json['titulo'],
       descripcion: json['descripcion'],
-      fechaHora: DateTime.parse(json['fecha_hora']),
+      fechaHora: json['fecha_hora'] != null ? DateTime.tryParse(json['fecha_hora']) : null,
     );
   }
 }
 
 class IncidenteCompleto {
-  final Incidente incidente;
+  final Incidente? incidente;
   final List<Evidencia> evidencias;
   final List<HistoriaIncidente> historial;
   final List<dynamic> asignaciones;
-  final int totalEvidencias;
-  final bool tieneFoto;
-  final bool tieneAudio;
+  final int? totalEvidencias;
+  final bool? tieneFoto;
+  final bool? tieneAudio;
 
   IncidenteCompleto({
-    required this.incidente,
+    this.incidente,
     required this.evidencias,
     required this.historial,
     required this.asignaciones,
-    required this.totalEvidencias,
-    required this.tieneFoto,
-    required this.tieneAudio,
+    this.totalEvidencias,
+    this.tieneFoto,
+    this.tieneAudio,
   });
 
   factory IncidenteCompleto.fromJson(Map<String, dynamic> json) {
     return IncidenteCompleto(
-      incidente: Incidente.fromJson(json['incidente']),
-      evidencias: (json['evidencias'] as List)
-          .map((e) => Evidencia.fromJson(e))
-          .toList(),
-      historial: (json['historial'] as List)
-          .map((h) => HistoriaIncidente.fromJson(h))
-          .toList(),
-      asignaciones: json['asignaciones'] as List,
+      incidente: json['incidente'] != null ? Incidente.fromJson(json['incidente']) : null,
+      evidencias: (json['evidencias'] as List?)
+          ?.map((e) => Evidencia.fromJson(e))
+          .toList() ?? [],
+      historial: (json['historial'] as List?)
+          ?.map((h) => HistoriaIncidente.fromJson(h))
+          .toList() ?? [],
+      asignaciones: json['asignaciones'] as List? ?? [],
       totalEvidencias: json['total_evidencias'],
       tieneFoto: json['tiene_foto'],
       tieneAudio: json['tiene_audio'],

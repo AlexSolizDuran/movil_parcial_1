@@ -1,69 +1,90 @@
-import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
 import '../../services/incidente_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/vehiculo_service.dart';
+import '../../models/vehiculo.dart';
+import '../../widgets/location_card.dart';
+import '../../widgets/vehicle_selector.dart';
+import '../../widgets/photo_evidence.dart';
+import '../../widgets/audio_evidence.dart';
 
 class ReportarEmergenciaScreen extends StatefulWidget {
   const ReportarEmergenciaScreen({super.key});
 
   @override
-  State<ReportarEmergenciaScreen> createState() =>
-      _ReportarEmergenciaScreenState();
+  State<ReportarEmergenciaScreen> createState() => _ReportarEmergenciaScreenState();
 }
 
 class _ReportarEmergenciaScreenState extends State<ReportarEmergenciaScreen> {
   final IncidenteService _incidenteService = IncidenteService();
   final ImagePicker _imagePicker = ImagePicker();
+  final AudioRecorder _audioRecorder = AudioRecorder();
 
-  Position? _currentPosition;
+  Position? _position;
   bool _isLoadingLocation = false;
   String? _locationError;
 
   final TextEditingController _descripcionController = TextEditingController();
   List<XFile> _photos = [];
   List<XFile> _audioFiles = [];
-  bool _isRecording = false;
+  bool _isRecordingAudio = false;
   bool _isSubmitting = false;
   String? _errorMessage;
+
+  List<Vehiculo> _vehiculos = [];
+  Vehiculo? _vehiculoSeleccionado;
+  bool _isLoadingVehiculos = false;
 
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
+    _getLocation();
+    _cargarVehiculos();
   }
 
   @override
   void dispose() {
     _descripcionController.dispose();
+    _audioRecorder.dispose();
     super.dispose();
   }
 
-  Future<void> _getCurrentLocation() async {
+  Future<void> _cargarVehiculos() async {
+    setState(() => _isLoadingVehiculos = true);
+    final vehiculos = await VehiculoService.getMisVehiculos();
+    setState(() {
+      _vehiculos = vehiculos;
+      _isLoadingVehiculos = false;
+      if (vehiculos.isNotEmpty) _vehiculoSeleccionado = vehiculos.first;
+    });
+  }
+
+  Future<void> _getLocation() async {
     setState(() {
       _isLoadingLocation = true;
       _locationError = null;
     });
 
+    final permission = await Permission.location.request();
+    if (!permission.isGranted) {
+      setState(() {
+        _locationError = 'Permiso de ubicación denegado';
+        _isLoadingLocation = false;
+      });
+      return;
+    }
+
     try {
-      final permission = await Permission.location.request();
-      if (permission.isGranted) {
-        final position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-        );
-        setState(() {
-          _currentPosition = position;
-          _isLoadingLocation = false;
-        });
-      } else {
-        setState(() {
-          _locationError = 'Permiso de ubicación denegado';
-          _isLoadingLocation = false;
-        });
-      }
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      setState(() {
+        _position = pos;
+        _isLoadingLocation = false;
+      });
     } catch (e) {
       setState(() {
         _locationError = 'Error al obtener ubicación: $e';
@@ -72,113 +93,87 @@ class _ReportarEmergenciaScreenState extends State<ReportarEmergenciaScreen> {
     }
   }
 
-  Future<void> _takePhoto() async {
-    try {
-      final XFile? photo = await _imagePicker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 80,
-      );
-      if (photo != null) {
-        setState(() {
-          _photos.add(photo);
-        });
-      }
-    } catch (e) {
-      _showError('Error al tomar foto: $e');
-    }
-  }
-
-  Future<void> _pickFromGallery() async {
-    try {
-      final XFile? photo = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 80,
-      );
-      if (photo != null) {
-        setState(() {
-          _photos.add(photo);
-        });
-      }
-    } catch (e) {
-      _showError('Error al seleccionar foto: $e');
-    }
-  }
-
-  void _showPhotoOptions() {
-    showModalBottomSheet(
+  Future<void> _addPhoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
       context: context,
-      builder: (context) => SafeArea(
+      builder: (ctx) => SafeArea(
         child: Wrap(
           children: [
             ListTile(
               leading: const Icon(Icons.camera_alt),
               title: const Text('Tomar foto'),
-              onTap: () {
-                Navigator.pop(context);
-                _takePhoto();
-              },
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
               title: const Text('Elegir de galería'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickFromGallery();
-              },
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
           ],
         ),
       ),
     );
+
+    if (source == null) return;
+    final photo = await _imagePicker.pickImage(source: source, imageQuality: 80);
+    if (photo != null) setState(() => _photos.add(photo));
   }
 
-  void _removePhoto(int index) {
-    setState(() {
-      _photos.removeAt(index);
+  Future<void> _startRecording() async {
+    if (!await _audioRecorder.hasPermission()) return;
+    final path = '${Directory.systemTemp.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    await _audioRecorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
+    setState(() => _isRecordingAudio = true);
+  }
+
+  Future<void> _stopRecording() async {
+    final path = await _audioRecorder.stop();
+    if (path != null) setState(() {
+      _isRecordingAudio = false;
+      _audioFiles.add(XFile(path));
     });
   }
 
   void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.red),
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
   Future<void> _submitEmergency() async {
-    if (_currentPosition == null) {
-      _showError('Espera a obtener tu ubicación');
-      return;
+    if (_position == null) return _showError('Espera a obtener tu ubicación');
+    if (_vehiculoSeleccionado == null) return _showError('Selecciona un vehículo');
+
+    setState(() => _isSubmitting = true);
+
+    final user = await AuthService.getCurrentUser();
+    if (user == null) {
+      setState(() => _isSubmitting = false);
+      return _showError('No se pudo obtener información del usuario');
     }
 
-    setState(() {
-      _isSubmitting = true;
-      _errorMessage = null;
-    });
-
     try {
-      final user = await AuthService.getCurrentUser();
-      if (user == null) {
-        _showError('No se pudo obtener información del usuario');
-        setState(() => _isSubmitting = false);
-        return;
-      }
-
       final incidente = await _incidenteService.crearIncidente(
         clienteId: user.id,
-        lat: _currentPosition!.latitude,
-        lng: _currentPosition!.longitude,
-        descripcion: _descripcionController.text.isNotEmpty
-            ? _descripcionController.text
-            : null,
+        vehiculoId: _vehiculoSeleccionado!.id,
+        lat: _position!.latitude,
+        lng: _position!.longitude,
+        descripcion: _descripcionController.text.isNotEmpty ? _descripcionController.text : null,
       );
 
-      for (var photo in _photos) {
+      for (final photo in _photos) {
         await _incidenteService.subirEvidencia(
           incidenteId: incidente.id,
           archivo: File(photo.path),
           tipo: 'foto',
+        );
+      }
+
+      for (final audio in _audioFiles) {
+        await _incidenteService.subirEvidencia(
+          incidenteId: incidente.id,
+          archivo: File(audio.path),
+          tipo: 'audio',
         );
       }
 
@@ -192,15 +187,15 @@ class _ReportarEmergenciaScreenState extends State<ReportarEmergenciaScreen> {
 
       await _incidenteService.analizarIncidente(incidente.id);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Emergencia reportada correctamente'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.of(context).pop(true);
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Emergencia reportada correctamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       setState(() {
         _errorMessage = 'Error al reportar emergencia: $e';
@@ -211,9 +206,7 @@ class _ReportarEmergenciaScreenState extends State<ReportarEmergenciaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = MediaQuery.platformBrightnessOf(context);
-    final isDark = brightness == Brightness.dark;
-    final primaryColor = isDark ? Colors.amber : Colors.blue[700]!;
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -226,71 +219,23 @@ class _ReportarEmergenciaScreenState extends State<ReportarEmergenciaScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.location_on, color: primaryColor),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Ubicación Actual',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    if (_isLoadingLocation)
-                      const Row(
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          SizedBox(width: 12),
-                          Text('Obteniendo ubicación...'),
-                        ],
-                      )
-                    else if (_locationError != null)
-                      Text(
-                        _locationError!,
-                        style: const TextStyle(color: Colors.red),
-                      )
-                    else if (_currentPosition != null)
-                      Text(
-                        'Lat: ${_currentPosition!.latitude.toStringAsFixed(6)}\n'
-                        'Lng: ${_currentPosition!.longitude.toStringAsFixed(6)}',
-                        style: TextStyle(
-                          color: isDark ? Colors.grey[300] : Colors.grey[700],
-                        ),
-                      ),
-                    const SizedBox(height: 8),
-                    TextButton.icon(
-                      onPressed: _isLoadingLocation
-                          ? null
-                          : _getCurrentLocation,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Actualizar ubicación'),
-                    ),
-                  ],
-                ),
-              ),
+            LocationCard(
+              position: _position,
+              isLoading: _isLoadingLocation,
+              error: _locationError,
+              onRefresh: _getLocation,
+            ),
+            const SizedBox(height: 16),
+            VehicleSelector(
+              vehiculos: _vehiculos,
+              selected: _vehiculoSeleccionado,
+              isLoading: _isLoadingVehiculos,
+              onChanged: (v) => setState(() => _vehiculoSeleccionado = v),
             ),
             const SizedBox(height: 16),
             Text(
               'Descripción del incidente',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -298,80 +243,23 @@ class _ReportarEmergenciaScreenState extends State<ReportarEmergenciaScreen> {
               maxLines: 3,
               decoration: InputDecoration(
                 hintText: 'Describe brevemente qué pasó...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
             const SizedBox(height: 24),
-            Row(
-              children: [
-                Text(
-                  'Evidencia Fotográfica',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                ),
-                const Spacer(),
-                ElevatedButton.icon(
-                  onPressed: _showPhotoOptions,
-                  icon: const Icon(Icons.add_a_photo),
-                  label: const Text('Agregar'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: isDark ? Colors.black : Colors.white,
-                  ),
-                ),
-              ],
+            PhotoEvidence(
+              photos: _photos,
+              onAddPhoto: _addPhoto,
+              onRemovePhoto: (i) => setState(() => _photos.removeAt(i)),
             ),
-            const SizedBox(height: 8),
-            if (_photos.isNotEmpty)
-              SizedBox(
-                height: 120,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _photos.length,
-                  itemBuilder: (context, index) {
-                    return Stack(
-                      children: [
-                        Container(
-                          width: 100,
-                          height: 100,
-                          margin: const EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            image: DecorationImage(
-                              image: FileImage(File(_photos[index].path)),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 4,
-                          right: 12,
-                          child: GestureDetector(
-                            onTap: () => _removePhoto(index),
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.close,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
+            const SizedBox(height: 24),
+            AudioEvidence(
+              audioFiles: _audioFiles,
+              isRecording: _isRecordingAudio,
+              onStartRecording: _startRecording,
+              onStopRecording: _stopRecording,
+              onRemoveAudio: (i) => setState(() => _audioFiles.removeAt(i)),
+            ),
             const SizedBox(height: 24),
             if (_errorMessage != null)
               Container(
@@ -381,18 +269,12 @@ class _ReportarEmergenciaScreenState extends State<ReportarEmergenciaScreen> {
                   color: Colors.red[100],
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  _errorMessage!,
-                  style: const TextStyle(color: Colors.red),
-                ),
+                child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
               ),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed:
-                    _isSubmitting ||
-                        _isLoadingLocation ||
-                        _currentPosition == null
+                onPressed: _isSubmitting || _position == null || _vehiculoSeleccionado == null
                     ? null
                     : _submitEmergency,
                 style: ElevatedButton.styleFrom(
@@ -404,17 +286,11 @@ class _ReportarEmergenciaScreenState extends State<ReportarEmergenciaScreen> {
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
                     : const Text(
                         'ENVIAR EMERGENCIA',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
             ),

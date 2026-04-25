@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/incidente_service.dart';
-import '../services/notificacion_service.dart';
+import '../services/cliente_notificacion_service.dart';
+import '../services/api_service.dart';
+import '../config/api_config.dart';
 import '../models/usuario.dart';
 import 'login_screen.dart';
 import 'perfil_screen.dart';
@@ -9,6 +12,7 @@ import 'vehiculos_list_screen.dart';
 import 'incidente/reportar_emergencia_screen.dart';
 import 'incidente/mis_incidentes_screen.dart';
 import 'incidente/detalle_incidente_screen.dart';
+import 'notificaciones_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,35 +24,126 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   Usuario? _usuario;
-  final NotificacionService _notificacionService = NotificacionService();
+  List<Map<String, dynamic>> _notificaciones = [];
+  final ClienteNotificacionService _notificacionService = ClienteNotificacionService();
 
   @override
   void initState() {
     super.initState();
     _loadUser();
-    _notificacionService.iniciarEscucha();
-    _notificacionService.onNotificacion.listen(_mostrarNotificacion);
+    _initNotificaciones();
+    _cargarNotificaciones();
   }
 
   @override
   void dispose() {
-    _notificacionService.detenerEscucha();
+    _notificacionService.disconnect();
     super.dispose();
   }
 
-  void _mostrarNotificacion(Notificacion notificacion) {
+  Future<void> _cargarNotificaciones() async {
+    try {
+      final response = await ApiService.get(ApiConfig.misNotificacionesUrl);
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.body.isNotEmpty ? List.from(jsonDecode(response.body)) : [];
+        setState(() {
+          _notificaciones = data.map((e) => Map<String, dynamic>.from(e)).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error cargar notificaciones: $e');
+    }
+  }
+
+  Future<void> _initNotificaciones() async {
+    await _notificacionService.connect();
+    _notificacionService.onNotificacion.listen((notif) {
+      _mostrarNotificacion(notif);
+      _cargarNotificaciones();
+    });
+  }
+
+  void _mostrarNotificacion(NotificacionPush notificacion) {
     if (!mounted) return;
+    
+    Color color;
+    IconData icon;
+    
+    switch (notificacion.type) {
+      case 'taller_rechazo':
+        color = Colors.orange;
+        icon = Icons.warning_amber;
+        break;
+      case 'taller_expirado':
+        color = Colors.orange;
+        icon = Icons.timer_off;
+        break;
+      case 'sin_talleres':
+        color = Colors.red;
+        icon = Icons.location_off;
+        break;
+      case 'incidente_asignado':
+        color = Colors.green;
+        icon = Icons.check_circle;
+        break;
+      case 'cambio_estado':
+        color = Colors.blue;
+        icon = Icons.info;
+        break;
+      case 'analisis_ia_completo':
+        color = Colors.purple;
+        icon = Icons.auto_awesome;
+        break;
+      default:
+        color = Colors.grey;
+        icon = Icons.notifications;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(notificacion.cuerpo),
-        backgroundColor: notificacion.tipo == 'nuevo_incidente'
-            ? Colors.green
-            : Colors.blue,
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notificacion.titulo,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  if (notificacion.mensaje.isNotEmpty)
+                    Text(
+                      notificacion.mensaje,
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: color,
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
           label: 'Ver',
           textColor: Colors.white,
           onPressed: () {
-            setState(() => _currentIndex = 1);
+            if (notificacion.data != null && notificacion.data!['incidente_id'] != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DetalleIncidenteScreen(
+                    incidenteId: notificacion.data!['incidente_id'],
+                  ),
+                ),
+              );
+            }
           },
         ),
       ),
@@ -98,6 +193,10 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _HomeTab(usuario: _usuario, onRefresh: _loadUser, onLogout: _logout),
           MisIncidentesScreen(),
+          NotificacionesScreen(
+              notificacionesIniciales: _notificaciones,
+              onRefresh: _cargarNotificaciones,
+            ),
           PerfilScreen(usuario: _usuario, onUpdate: _loadUser),
         ],
       ),
@@ -116,6 +215,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.report_problem_outlined),
             selectedIcon: Icon(Icons.report_problem),
             label: 'Incidentes',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.notifications_outlined),
+            selectedIcon: Icon(Icons.notifications),
+            label: 'Notifs',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
@@ -173,12 +277,22 @@ class _HomeTabState extends State<_HomeTab> {
 
   String _getEstadoLabel(String estado) {
     switch (estado) {
+      case 'reportado':
+        return 'En espera de análisis';
       case 'asignado':
         return 'Asignado';
       case 'en_camino':
         return 'En camino';
       case 'en_sitio':
         return 'En sitio';
+      case 'finalizado':
+        return 'Finalizado';
+      case 'cancelado':
+        return 'Cancelado';
+      case 'sin_talleres':
+        return 'Sin talleres disponibles';
+      case 'incluido':
+        return 'Análisis inconcluso';
       default:
         return estado;
     }
@@ -186,12 +300,22 @@ class _HomeTabState extends State<_HomeTab> {
 
   Color _getEstadoColor(String estado) {
     switch (estado) {
+      case 'reportado':
+        return Colors.orange;
       case 'asignado':
         return Colors.blue;
       case 'en_camino':
         return Colors.orange;
       case 'en_sitio':
         return Colors.green;
+      case 'finalizado':
+        return Colors.grey;
+      case 'cancelado':
+        return Colors.red;
+      case 'sin_talleres':
+        return Colors.red;
+      case 'incluido':
+        return Colors.purple;
       default:
         return Colors.grey;
     }
@@ -310,15 +434,47 @@ class _HomeTabState extends State<_HomeTab> {
                 ),
               ),
               const SizedBox(height: 24),
-              Text(
-                'Acciones Rápidas',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.red.shade600, Colors.red.shade700],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.red.withAlpha(102),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ReportarEmergenciaScreen(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                  ),
+                  icon: const Icon(Icons.emergency, color: Colors.white, size: 28),
+                  label: const Text(
+                    'REPORTAR EMERGENCIA',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               Row(
                 children: [
                   Expanded(
@@ -331,42 +487,6 @@ class _HomeTabState extends State<_HomeTab> {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const VehiculosListScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _QuickActionCard(
-                      icon: Icons.report_problem,
-                      title: 'Reportar',
-                      subtitle: 'Emergencia',
-                      color: Colors.red,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const ReportarEmergenciaScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _QuickActionCard(
-                      icon: Icons.search,
-                      title: 'Buscar',
-                      subtitle: 'Talleres',
-                      color: Colors.green,
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Próximamente: Buscar talleres'),
                           ),
                         );
                       },
@@ -519,9 +639,14 @@ class _IncidenteEnCursoCard extends StatelessWidget {
     final taller = data['taller'] as Map<String, dynamic>?;
     final tecnico = data['tecnico'] as Map<String, dynamic>?;
     final historial = data['historial'] as List<dynamic>? ?? [];
+    final estado = incidente?['estado'] ?? '';
+
+    final esEstadoInicial = estado == 'reportado' || estado == 'incluido';
+    final cardColor = esEstadoInicial ? Colors.orange[50] : Colors.blue[50];
+    final iconColor = esEstadoInicial ? Colors.orange[700] : Colors.blue[700];
 
     return Card(
-      color: Colors.blue[50],
+      color: cardColor,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -529,14 +654,14 @@ class _IncidenteEnCursoCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.directions_car, color: Colors.blue[700]),
+                Icon(Icons.directions_car, color: iconColor),
                 const SizedBox(width: 8),
                 Text(
-                  'Incidente en Curso',
+                  esEstadoInicial ? 'Incidente en Análisis' : 'Incidente en Curso',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue[700],
+                    color: iconColor,
                   ),
                 ),
                 const Spacer(),
@@ -561,6 +686,84 @@ class _IncidenteEnCursoCard extends StatelessWidget {
                 ),
               ],
             ),
+            
+            if (incidente?['especialidad_ia'] != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(Icons.auto_awesome, size: 18, color: Colors.purple),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Especialidad: ${incidente?['especialidad_ia'] ?? 'Analizando...'}',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            
+            if (incidente?['descripcion_ia'] != null && incidente!['descripcion_ia'].toString().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(128),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Análisis de IA:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      incidente?['descripcion_ia'] ?? '',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
+            if (incidente?['mensaje_solicitud'] != null && incidente!['mensaje_solicitud'].toString().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.yellow[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info, size: 18, color: Colors.orange),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        incidente?['mensaje_solicitud'] ?? '',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
             const SizedBox(height: 16),
             if (taller != null) ...[
               Row(

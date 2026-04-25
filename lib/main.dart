@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
+import 'services/notificacion_local_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  final notifService = NotificacionLocalService();
+  await notifService.inicializar();
+  await notifService.solicitarPermisos();
+  
   runApp(const AuxiaApp());
 }
 

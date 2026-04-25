@@ -31,7 +31,7 @@ class _MisIncidentesScreenState extends State<MisIncidentesScreen> {
     try {
       final incidentes = await _incidenteService.obtenerMisIncidentes();
       setState(() {
-        _incidentes = incidentes;
+        _incidentes = incidentes.reversed.toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -72,7 +72,8 @@ class _MisIncidentesScreenState extends State<MisIncidentesScreen> {
     }
   }
 
-  String _formatDate(DateTime date) {
+  String _formatDate(DateTime? date) {
+    if (date == null) return '';
     return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
@@ -209,18 +210,18 @@ class _MisIncidentesScreenState extends State<MisIncidentesScreen> {
                             ),
                             decoration: BoxDecoration(
                               color: _getEstadoColor(
-                                incidente.estado,
+                                incidente.estado ?? 'reportado',
                               ).withAlpha(30),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: _getEstadoColor(incidente.estado),
+                                color: _getEstadoColor(incidente.estado ?? 'reportado'),
                               ),
                             ),
                             child: Text(
-                              incidente.estado,
+                              incidente.estado ?? 'reportado',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: _getEstadoColor(incidente.estado),
+                                color: _getEstadoColor(incidente.estado ?? 'reportado'),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -272,7 +273,7 @@ class _MisIncidentesScreenState extends State<MisIncidentesScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Lat: ${incidente.ubicacionLat.toStringAsFixed(4)}, Lng: ${incidente.ubicacionLng.toStringAsFixed(4)}',
+                              'Lat: ${incidente.ubicacionLat?.toStringAsFixed(4) ?? '0'}, Lng: ${incidente.ubicacionLng?.toStringAsFixed(4) ?? '0'}',
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 12,

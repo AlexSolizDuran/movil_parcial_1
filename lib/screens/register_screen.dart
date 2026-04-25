@@ -88,14 +88,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     final brightness = MediaQuery.platformBrightnessOf(context);
     final isDark = brightness == Brightness.dark;
-    final primaryColor = isDark ? Colors.amber : Colors.blue[700]!;
+    final primaryColor = isDark ? Colors.amber : const Color(0xFF2563EB);
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black87),
+          icon: Icon(Icons.arrow_back_ios, color: primaryColor),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -117,172 +117,223 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Regístrate como cliente',
+                  'Únete a AUXIA',
                   style: TextStyle(
                     fontSize: 16,
                     color: isDark ? Colors.grey[400] : Colors.grey[600],
                   ),
                 ),
                 const SizedBox(height: 32),
-                TextFormField(
-                  controller: _nombreController,
-                  decoration: InputDecoration(
-                    labelText: 'Nombre completo',
-                    prefixIcon: const Icon(Icons.person),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                Card(
+                  elevation: 0,
+                  color: isDark ? Colors.grey[850] : Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: isDark ? Colors.grey[700]! : Colors.grey[200]!,
                     ),
-                    filled: true,
-                    fillColor: isDark ? Colors.grey[800] : Colors.grey[100],
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Ingresa tu nombre';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _usernameController,
-                  decoration: InputDecoration(
-                    labelText: 'Usuario',
-                    prefixIcon: const Icon(Icons.account_circle),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        TextFormField(
+                          controller: _nombreController,
+                          decoration: InputDecoration(
+                            labelText: 'Nombre completo',
+                            prefixIcon: Icon(Icons.person_outline, color: primaryColor),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: isDark ? Colors.grey[800] : Colors.grey[50],
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Ingresa tu nombre';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _usernameController,
+                          decoration: InputDecoration(
+                            labelText: 'Usuario',
+                            prefixIcon: Icon(Icons.alternate_email, color: primaryColor),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: isDark ? Colors.grey[800] : Colors.grey[50],
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Ingresa un nombre de usuario';
+                            }
+                            if (value.length < 3) {
+                              return 'El usuario debe tener al menos 3 caracteres';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: InputDecoration(
+                            labelText: 'Correo electrónico',
+                            prefixIcon: Icon(Icons.email_outlined, color: primaryColor),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: isDark ? Colors.grey[800] : Colors.grey[50],
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Ingresa tu correo';
+                            }
+                            if (!value.contains('@') || !value.contains('.')) {
+                              return 'Ingresa un correo válido';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _telefonoController,
+                          keyboardType: TextInputType.phone,
+                          decoration: InputDecoration(
+                            labelText: 'Teléfono (opcional)',
+                            prefixIcon: Icon(Icons.phone_android, color: primaryColor),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: isDark ? Colors.grey[800] : Colors.grey[50],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          decoration: InputDecoration(
+                            labelText: 'Contraseña',
+                            prefixIcon: Icon(Icons.lock_outline, color: primaryColor),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                color: primaryColor,
+                              ),
+                              onPressed: () {
+                                setState(() => _obscurePassword = !_obscurePassword);
+                              },
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: isDark ? Colors.grey[800] : Colors.grey[50],
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Ingresa una contraseña';
+                            }
+                            if (value.length < 6) {
+                              return 'La contraseña debe tener al menos 6 caracteres';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _confirmPasswordController,
+                          obscureText: _obscureConfirmPassword,
+                          decoration: InputDecoration(
+                            labelText: 'Confirmar contraseña',
+                            prefixIcon: Icon(Icons.lock_outline, color: primaryColor),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                                color: primaryColor,
+                              ),
+                              onPressed: () {
+                                setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
+                              },
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: isDark ? Colors.grey[800] : Colors.grey[50],
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Confirma tu contraseña';
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
                     ),
-                    filled: true,
-                    fillColor: isDark ? Colors.grey[800] : Colors.grey[100],
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Ingresa un nombre de usuario';
-                    }
-                    if (value.length < 3) {
-                      return 'El usuario debe tener al menos 3 caracteres';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'Correo electrónico',
-                    prefixIcon: const Icon(Icons.email),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: isDark ? Colors.grey[800] : Colors.grey[100],
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Ingresa tu correo';
-                    }
-                    if (!value.contains('@') || !value.contains('.')) {
-                      return 'Ingresa un correo válido';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _telefonoController,
-                  keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(
-                    labelText: 'Teléfono (opcional)',
-                    prefixIcon: const Icon(Icons.phone),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: isDark ? Colors.grey[800] : Colors.grey[100],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Contraseña',
-                    prefixIcon: const Icon(Icons.lock),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: isDark ? Colors.grey[800] : Colors.grey[100],
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Ingresa una contraseña';
-                    }
-                    if (value.length < 6) {
-                      return 'La contraseña debe tener al menos 6 caracteres';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: _obscureConfirmPassword,
-                  decoration: InputDecoration(
-                    labelText: 'Confirmar contraseña',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
-                      },
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: isDark ? Colors.grey[800] : Colors.grey[100],
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Confirma tu contraseña';
-                    }
-                    return null;
-                  },
                 ),
                 const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _register,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: isDark ? Colors.black : Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                Container(
+                  width: double.infinity,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: isDark
+                          ? [Colors.amber.shade400, Colors.amber.shade600]
+                          : [const Color(0xFF2563EB), const Color(0xFF1D4ED8)],
                     ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primaryColor.withAlpha(77),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text(
-                          'Registrarse',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _register,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.person_add, color: Colors.white),
+                              SizedBox(width: 8),
+                              Text(
+                                'Registrarse',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

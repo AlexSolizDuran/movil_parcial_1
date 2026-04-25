@@ -20,6 +20,27 @@ class ApiService {
     await prefs.remove(_tokenKey);
   }
 
+  static Future<String?> getUserRole() async {
+    final token = await getToken();
+    if (token == null) return null;
+    
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      
+      var payload = parts[1];
+      payload = payload.replaceAll('-', '+').replaceAll('_', '/');
+      while (payload.length % 4 != 0) {
+        payload += '=';
+      }
+      final decoded = utf8.decode(base64.decode(payload));
+      final data = jsonDecode(decoded);
+      return data['rol'];
+    } catch (e) {
+      return null;
+    }
+  }
+
   static Future<Map<String, String>> _getHeaders({bool withAuth = true}) async {
     final headers = <String, String>{
       'Content-Type': 'application/json',

@@ -46,8 +46,9 @@ class _DetalleIncidenteScreenState extends State<DetalleIncidenteScreen> {
     }
   }
 
-  Color _getEstadoColor(String estado) {
-    switch (estado.toLowerCase()) {
+  Color _getEstadoColor(String? estado) {
+    final e = estado ?? 'reportado';
+    switch (e.toLowerCase()) {
       case 'pendiente':
         return Colors.orange;
       case 'asignado':
@@ -55,6 +56,7 @@ class _DetalleIncidenteScreenState extends State<DetalleIncidenteScreen> {
       case 'en_proceso':
         return Colors.purple;
       case 'completado':
+      case 'finalizado':
         return Colors.green;
       case 'cancelado':
         return Colors.grey;
@@ -145,15 +147,13 @@ class _DetalleIncidenteScreenState extends State<DetalleIncidenteScreen> {
                                 Icon(
                                   Icons.warning_amber,
                                   color: _getPrioridadColor(
-                                    _incidenteCompleto!.incidente.prioridad,
+                                    _incidenteCompleto!.incidente?.prioridad,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    _incidenteCompleto!
-                                            .incidente
-                                            .especialidadIa ??
+                                    _incidenteCompleto!.incidente?.especialidadIa ??
                                         'Sin clasificar',
                                     style: const TextStyle(
                                       fontSize: 18,
@@ -168,21 +168,21 @@ class _DetalleIncidenteScreenState extends State<DetalleIncidenteScreen> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: _getEstadoColor(
-                                      _incidenteCompleto!.incidente.estado,
+                                      _incidenteCompleto!.incidente?.estado ?? 'reportado',
                                     ).withAlpha(30),
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
                                       color: _getEstadoColor(
-                                        _incidenteCompleto!.incidente.estado,
+                                        _incidenteCompleto!.incidente?.estado ?? 'reportado',
                                       ),
                                     ),
                                   ),
                                   child: Text(
-                                    _incidenteCompleto!.incidente.estado,
+                                    _incidenteCompleto!.incidente?.estado ?? 'reportado',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: _getEstadoColor(
-                                        _incidenteCompleto!.incidente.estado,
+                                        _incidenteCompleto!.incidente?.estado ?? 'reportado',
                                       ),
                                     ),
                                   ),
@@ -190,7 +190,7 @@ class _DetalleIncidenteScreenState extends State<DetalleIncidenteScreen> {
                               ],
                             ),
                             const Divider(height: 24),
-                            if (_incidenteCompleto!.incidente.prioridad !=
+                            if (_incidenteCompleto!.incidente?.prioridad !=
                                 null) ...[
                               Row(
                                 children: [
@@ -198,16 +198,16 @@ class _DetalleIncidenteScreenState extends State<DetalleIncidenteScreen> {
                                     Icons.flag,
                                     size: 20,
                                     color: _getPrioridadColor(
-                                      _incidenteCompleto!.incidente.prioridad,
+                                      _incidenteCompleto!.incidente?.prioridad,
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Prioridad: ${_incidenteCompleto!.incidente.prioridad}',
+                                    'Prioridad: ${_incidenteCompleto!.incidente?.prioridad}',
                                     style: TextStyle(
                                       fontSize: 16,
                                       color: _getPrioridadColor(
-                                        _incidenteCompleto!.incidente.prioridad,
+                                        _incidenteCompleto!.incidente?.prioridad,
                                       ),
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -218,7 +218,7 @@ class _DetalleIncidenteScreenState extends State<DetalleIncidenteScreen> {
                             ],
                             if (_incidenteCompleto!
                                     .incidente
-                                    .descripcionOriginal !=
+                                    ?.descripcionOriginal !=
                                 null) ...[
                               Text(
                                 'Descripción original:',
@@ -231,11 +231,12 @@ class _DetalleIncidenteScreenState extends State<DetalleIncidenteScreen> {
                               Text(
                                 _incidenteCompleto!
                                     .incidente
-                                    .descripcionOriginal!,
+                                    ?.descripcionOriginal ??
+                                    '',
                               ),
                               const SizedBox(height: 12),
                             ],
-                            if (_incidenteCompleto!.incidente.descripcionIa !=
+                            if (_incidenteCompleto!.incidente?.descripcionIa !=
                                 null) ...[
                               Text(
                                 'Análisis IA:',
@@ -246,13 +247,14 @@ class _DetalleIncidenteScreenState extends State<DetalleIncidenteScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                _incidenteCompleto!.incidente.descripcionIa!,
+                                _incidenteCompleto!.incidente?.descripcionIa ??
+                                    '',
                               ),
                               const SizedBox(height: 12),
                             ],
                             if (_incidenteCompleto!
                                     .incidente
-                                    .requiereMasEvidencia ==
+                                    ?.requiereMasEvidencia ==
                                 1) ...[
                               Container(
                                 padding: const EdgeInsets.all(12),
@@ -282,9 +284,9 @@ class _DetalleIncidenteScreenState extends State<DetalleIncidenteScreen> {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      _incidenteCompleto!
-                                              .incidente
-                                              .mensajeSolicitud ??
+_incidenteCompleto!
+                                                .incidente
+                                                ?.mensajeSolicitud ??
                                           'Por favor, proporciona más detalles sobre el incidente.',
                                       style: TextStyle(color: Colors.grey[800]),
                                     ),
@@ -295,11 +297,12 @@ class _DetalleIncidenteScreenState extends State<DetalleIncidenteScreen> {
                                           context,
                                           MaterialPageRoute(
                                             builder: (context) =>
-                                                AgregarEvidenciaScreen(
+AgregarEvidenciaScreen(
                                                   incidenteId:
                                                       _incidenteCompleto!
                                                           .incidente
-                                                          .id,
+                                                          ?.id ??
+                                                          0,
                                                 ),
                                           ),
                                         );
@@ -328,7 +331,7 @@ class _DetalleIncidenteScreenState extends State<DetalleIncidenteScreen> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    'Lat: ${_incidenteCompleto!.incidente.ubicacionLat.toStringAsFixed(6)}, Lng: ${_incidenteCompleto!.incidente.ubicacionLng.toStringAsFixed(6)}',
+                                    'Lat: ${_incidenteCompleto!.incidente?.ubicacionLat?.toStringAsFixed(6) ?? 'N/A'}, Lng: ${_incidenteCompleto!.incidente?.ubicacionLng?.toStringAsFixed(6) ?? 'N/A'}',
                                     style: TextStyle(
                                       color: Colors.grey[600],
                                       fontSize: 12,
@@ -348,7 +351,7 @@ class _DetalleIncidenteScreenState extends State<DetalleIncidenteScreen> {
                                 const SizedBox(width: 8),
                                 Text(
                                   _formatDate(
-                                    _incidenteCompleto!.incidente.fechaCreacion,
+                                    _incidenteCompleto!.incidente?.fechaCreacion,
                                   ),
                                   style: TextStyle(color: Colors.grey[600]),
                                 ),
@@ -372,9 +375,9 @@ class _DetalleIncidenteScreenState extends State<DetalleIncidenteScreen> {
                           ),
                         ),
                         const Spacer(),
-                        if (_incidenteCompleto!.tieneFoto)
+                        if (_incidenteCompleto!.tieneFoto == true)
                           const Icon(Icons.photo, color: Colors.blue, size: 20),
-                        if (_incidenteCompleto!.tieneAudio)
+                        if (_incidenteCompleto!.tieneAudio == true)
                           const Icon(Icons.mic, color: Colors.orange, size: 20),
                       ],
                     ),
@@ -497,7 +500,7 @@ class _DetalleIncidenteScreenState extends State<DetalleIncidenteScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  historia.titulo,
+                                  historia.titulo ?? '',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -557,7 +560,8 @@ class _DetalleIncidenteScreenState extends State<DetalleIncidenteScreen> {
     );
   }
 
-  String _formatDate(DateTime date) {
+  String _formatDate(DateTime? date) {
+    if (date == null) return '';
     return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 }

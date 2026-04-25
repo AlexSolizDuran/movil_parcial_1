@@ -215,4 +215,39 @@ class IncidenteService {
       throw Exception('Error de conexión: $e');
     }
   }
+
+  Future<Map<String, dynamic>> procesarPago({
+    required String numeroTarjeta,
+    required String cvv,
+    required String expira,
+    required double monto,
+    required String email,
+    required String nombreTitular,
+    int? asignacionId,
+  }) async {
+    try {
+      final headers = await _headers;
+      final response = await http.post(
+        Uri.parse(ApiConfig.pagosProcesarUrl),
+        headers: headers,
+        body: json.encode({
+          'numero_tarjeta': numeroTarjeta,
+          'cvv': cvv,
+          'expira': expira,
+          'monto': monto,
+          'email': email,
+          'nombre_titular': nombreTitular,
+          'asignacion_id': asignacionId,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Error al procesar pago: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error de conexión: $e');
+    }
+  }
 }

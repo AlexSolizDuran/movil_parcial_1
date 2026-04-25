@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
+import '../models/usuario.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
+import 'tecnico/tecnico_home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -25,9 +28,18 @@ class _SplashScreenState extends State<SplashScreen> {
     final token = await ApiService.getToken();
     
     if (token != null) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
+      final usuario = await AuthService.getCurrentUser();
+      if (!mounted) return;
+      
+      if (usuario != null && usuario.rol == 'tecnico') {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const TecnicoHomeScreen()),
+        );
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
     } else {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const LoginScreen()),
