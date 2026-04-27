@@ -25,7 +25,16 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   void initState() {
     super.initState();
     if (widget.notificacionesIniciales != null) {
-      _notificaciones.addAll(widget.notificacionesIniciales!);
+      final sortedData = List<Map<String, dynamic>>.from(widget.notificacionesIniciales!);
+      sortedData.sort((a, b) {
+        final fechaA = _parseFecha(a['fecha_envio']);
+        final fechaB = _parseFecha(b['fecha_envio']);
+        if (fechaA == null && fechaB == null) return 0;
+        if (fechaA == null) return 1;
+        if (fechaB == null) return -1;
+        return fechaB.compareTo(fechaA);
+      });
+      _notificaciones.addAll(sortedData);
     }
   }
 
@@ -37,11 +46,21 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
         final List<dynamic> data = response.body.isNotEmpty 
             ? List.from(jsonDecode(response.body)) 
             : [];
+        final sortedData = List<Map<String, dynamic>>.from(data);
+        sortedData.sort((a, b) {
+          final fechaA = _parseFecha(a['fecha_envio']);
+          final fechaB = _parseFecha(b['fecha_envio']);
+          if (fechaA == null && fechaB == null) return 0;
+          if (fechaA == null) return 1;
+          if (fechaB == null) return -1;
+          return fechaB.compareTo(fechaA);
+        });
         setState(() {
           _notificaciones.clear();
-          _notificaciones.addAll(data.map((e) => Map<String, dynamic>.from(e)).toList());
+          _notificaciones.addAll(sortedData);
         });
       }
+    } catch (e) {
     } catch (e) {
       debugPrint('Error cargar notificaciones: $e');
       if (mounted) {
@@ -54,6 +73,21 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  DateTime? _parseFecha(dynamic fecha) {
+    if (fecha == null) return null;
+    if (fecha is String) {
+      try {
+        return DateTime.parse(fecha);
+      } catch (e) {
+        return null;
+      }
+    }
+    if (fecha is DateTime) {
+      return fecha;
+    }
+    return null;
   }
 
   void agregarNotificacion(Map<String, dynamic> notificacion) {
@@ -162,7 +196,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                         final tipo = notif['tipo']?.toString() ?? 'default';
                         final titulo = notif['titulo']?.toString() ?? 'Notificación';
                         final mensaje = notif['mensaje']?.toString() ?? '';
-                        final fecha = notif['fecha_creacion'];
+                        final fecha = notif['fecha_envio'];
 
                         return Card(
                           margin: const EdgeInsets.symmetric(vertical: 4),

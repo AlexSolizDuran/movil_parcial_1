@@ -5,12 +5,14 @@ import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import '../../models/incidente_tecnico.dart';
 import '../../services/tecnico_service.dart';
+import '../../services/tecnico_websocket_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/api_service.dart';
 import '../../config/api_config.dart';
 import '../login_screen.dart';
 import '../notificaciones_screen.dart';
 import 'mapa_tecnico_screen.dart';
+import 'detalle_incidente_tecnico_screen.dart';
 
 class TecnicoHomeScreen extends StatefulWidget {
   const TecnicoHomeScreen({super.key});
@@ -29,6 +31,8 @@ class _TecnicoHomeScreenState extends State<TecnicoHomeScreen> {
   Position? _posicionActual;
   Timer? _ubicacionTimer;
   bool _ubicacionEnviada = false;
+  final TecnicoWebSocketService _wsService = TecnicoWebSocketService();
+  bool _wsConnected = false;
 
   @override
   void initState() {
@@ -37,12 +41,32 @@ class _TecnicoHomeScreenState extends State<TecnicoHomeScreen> {
     _cargarNotificaciones();
     _obtenerYEnviarUbicacion();
     _iniciarTimerUbicacion();
+    _conectarWebSocket();
   }
 
   @override
   void dispose() {
     _ubicacionTimer?.cancel();
+    _wsService.disconnect();
     super.dispose();
+  }
+
+  Future<void> _conectarWebSocket() async {
+    final usuario = await AuthService.getCurrentUser();
+    if (usuario != null && usuario.id != null) {
+      final token = await ApiService.getToken() ?? '';
+      _wsService.connect(usuario.id!, token);
+      setState(() {
+        _wsConnected = _wsService.isConnected;
+      });
+      
+      _wsService.notificationStream.listen((notif) {
+        debugPrint('Notificación WebSocket recibida: $notif');
+        if (notif.type == 'nuevo_incidente_asignado') {
+          _cargarIncidente();
+        }
+      });
+    }
   }
 
   Future<void> _cargarNotificaciones() async {
@@ -406,6 +430,18 @@ class _TecnicoHomeScreenState extends State<TecnicoHomeScreen> {
                 );
               }
             },
+            onVerDetalles: () {
+              if (_incidente?.incidente != null && _incidente?.tecnico != null) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => DetalleIncidenteTecnicoScreen(
+                      incidente: _incidente!.incidente!,
+                      tecnicoId: _incidente!.tecnico!.id,
+                    ),
+                  ),
+                );
+              }
+            },
           ),
           _HistorialTab(
             historial: _historial,
@@ -468,6 +504,7 @@ class _HomeTab extends StatelessWidget {
   final Function(String) onCambiarEstado;
   final Function(double) onFinalizarConMonto;
   final VoidCallback onVerMapa;
+  final VoidCallback onVerDetalles;
   final Future<double?> Function() onShowMontoDialog;
 
   const _HomeTab({
@@ -480,6 +517,7 @@ class _HomeTab extends StatelessWidget {
     required this.onCambiarEstado,
     required this.onFinalizarConMonto,
     required this.onVerMapa,
+    required this.onVerDetalles,
     required this.onShowMontoDialog,
   });
 
@@ -807,6 +845,18 @@ class _HomeTab extends StatelessWidget {
           label: const Text('Ver Mapa'),
           style: ElevatedButton.styleFrom(
             backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        const SizedBox(height: 8),
+        ElevatedButton.icon(
+          onPressed: onVerDetalles,
+          icon: const Icon(Icons.info_outline),
+          label: const Text('Ver Detalles'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.teal,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

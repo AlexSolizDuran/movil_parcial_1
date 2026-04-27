@@ -56,11 +56,13 @@ class UsuarioInfo {
 class ClienteInfo {
   final int id;
   final String nombre;
+  final String? email;
   final String? telefono;
 
   ClienteInfo({
     required this.id,
     required this.nombre,
+    this.email,
     this.telefono,
   });
 
@@ -68,6 +70,7 @@ class ClienteInfo {
     return ClienteInfo(
       id: json['id'] ?? 0,
       nombre: json['nombre'] ?? 'Cliente',
+      email: json['email'],
       telefono: json['telefono'],
     );
   }
@@ -78,14 +81,14 @@ class VehiculoInfo {
   final String? marca;
   final String? modelo;
   final String? patente;
-  final int? anio;
+  final String? color;
 
   VehiculoInfo({
     required this.id,
     this.marca,
     this.modelo,
     this.patente,
-    this.anio,
+    this.color,
   });
 
   factory VehiculoInfo.fromJson(Map<String, dynamic> json) {
@@ -94,7 +97,33 @@ class VehiculoInfo {
       marca: json['marca'],
       modelo: json['modelo'],
       patente: json['patente'],
-      anio: json['anio'],
+      color: json['color'],
+    );
+  }
+}
+
+class EvidenciaInfo {
+  final int id;
+  final String tipo;
+  final String? urlArchivo;
+  final String? contenido;
+  final String? descripcion;
+
+  EvidenciaInfo({
+    required this.id,
+    required this.tipo,
+    this.urlArchivo,
+    this.contenido,
+    this.descripcion,
+  });
+
+  factory EvidenciaInfo.fromJson(Map<String, dynamic> json) {
+    return EvidenciaInfo(
+      id: json['id'] ?? 0,
+      tipo: json['tipo'] ?? 'texto',
+      urlArchivo: json['url_archivo'],
+      contenido: json['contenido'],
+      descripcion: json['descripcion'],
     );
   }
 }
@@ -103,35 +132,48 @@ class IncidenteTecnico {
   final int id;
   final String estado;
   final String? prioridad;
+  final String? descripcionOriginal;
   final String? descripcion;
   final String? descripcionIa;
   final double? ubicacionLat;
   final double? ubicacionLng;
   final String? direccion;
+  final String? mensajeSolicitud;
   final DateTime? fechaCreacion;
   final ClienteInfo? cliente;
   final VehiculoInfo? vehiculo;
+  final List<EvidenciaInfo>? evidencias;
 
   IncidenteTecnico({
     required this.id,
     required this.estado,
     this.prioridad,
+    this.descripcionOriginal,
     this.descripcion,
     this.descripcionIa,
     this.ubicacionLat,
     this.ubicacionLng,
     this.direccion,
+    this.mensajeSolicitud,
     this.fechaCreacion,
     this.cliente,
     this.vehiculo,
+    this.evidencias,
   });
 
   factory IncidenteTecnico.fromJson(Map<String, dynamic> json) {
     final incidente = json['incidente'] ?? json;
+    List<EvidenciaInfo>? evidencias;
+    if (incidente['evidencias'] != null) {
+      evidencias = (incidente['evidencias'] as List)
+          .map((e) => EvidenciaInfo.fromJson(e))
+          .toList();
+    }
     return IncidenteTecnico(
       id: incidente['id'] ?? 0,
       estado: incidente['estado'] ?? 'pendiente',
       prioridad: incidente['prioridad'],
+      descripcionOriginal: incidente['descripcion_original'],
       descripcion: incidente['descripcion'],
       descripcionIa: incidente['descripcion_ia'],
       ubicacionLat: incidente['ubicacion_lat'] != null
@@ -141,6 +183,7 @@ class IncidenteTecnico {
           ? (incidente['ubicacion_lng'] as num).toDouble()
           : null,
       direccion: incidente['direccion'],
+      mensajeSolicitud: incidente['mensaje_solicitud'],
       fechaCreacion: incidente['fecha_creacion'] != null
           ? DateTime.parse(incidente['fecha_creacion'])
           : null,
@@ -150,6 +193,7 @@ class IncidenteTecnico {
       vehiculo: incidente['vehiculo'] != null
           ? VehiculoInfo.fromJson(incidente['vehiculo'])
           : null,
+      evidencias: evidencias,
     );
   }
 }

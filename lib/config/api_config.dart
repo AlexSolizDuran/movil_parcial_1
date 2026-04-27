@@ -50,6 +50,8 @@ class ApiConfig {
       '$apiUrl/usuarios/tecnicos/$id/ubicacion';
   static String tecnicoDisponibilidadUrl(int id) =>
       '$apiUrl/usuarios/tecnicos/$id/disponibilidad';
+  static String tecnicoCancelarUrl(int id) =>
+      '$apiUrl/usuarios/tecnicos/$id/cancelar-incidente';
   static String get tecnicoHistorialUrl =>
       '$apiUrl/usuarios/tecnicos/historial';
 

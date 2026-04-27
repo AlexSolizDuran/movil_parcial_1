@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificacionLocalService {
@@ -23,8 +24,16 @@ class NotificacionLocalService {
       iOS: iosSettings,
     );
 
-    await _notifications.initialize(initSettings);
+    await _notifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: _onNotificationTapped,
+    );
     _isInitialized = true;
+    debugPrint('NotificacionLocalService inicializada correctamente');
+  }
+
+  void _onNotificationTapped(NotificationResponse response) {
+    debugPrint('Notificación tocada: ${response.payload}');
   }
 
   Future<void> solicitarPermisos() async {
@@ -39,7 +48,10 @@ class NotificacionLocalService {
     required String cuerpo,
     String? payload,
   }) async {
+    debugPrint('Mostrando notificación: $titulo - $cuerpo');
+    
     if (!_isInitialized) {
+      debugPrint('Inicializando servicio de notificaciones...');
       await inicializar();
     }
 
@@ -65,7 +77,12 @@ class NotificacionLocalService {
       iOS: iosDetails,
     );
 
-    await _notifications.show(id, titulo, cuerpo, details, payload: payload);
+    try {
+      await _notifications.show(id, titulo, cuerpo, details, payload: payload);
+      debugPrint('Notificación mostrada exitosamente: id=$id');
+    } catch (e) {
+      debugPrint('Error mostrando notificación: $e');
+    }
   }
 
   Future<void> mostrarNotificacionAnalisis({

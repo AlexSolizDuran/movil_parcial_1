@@ -165,4 +165,29 @@ class TecnicoService {
       return {'success': false, 'error': 'No se pudo conectar al servidor'};
     }
   }
+
+  static Future<Map<String, dynamic>> cancelarIncidente(int tecnicoId, String motivo) async {
+    try {
+      final response = await http.put(
+        Uri.parse(ApiConfig.tecnicoCancelarUrl(tecnicoId)),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${await ApiService.getToken()}',
+        },
+        body: jsonEncode({'motivo': motivo}),
+      );
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'data': jsonDecode(response.body)};
+      } else {
+        final error = jsonDecode(response.body);
+        return {
+          'success': false,
+          'error': error['detail'] ?? 'Error al cancelar incidente',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'error': 'No se pudo conectar al servidor'};
+    }
+  }
 }

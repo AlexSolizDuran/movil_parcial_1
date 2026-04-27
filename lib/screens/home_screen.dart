@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
@@ -26,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Usuario? _usuario;
   List<Map<String, dynamic>> _notificaciones = [];
   final ClienteNotificacionService _notificacionService = ClienteNotificacionService();
+  Timer? _pollingTimer;
 
   @override
   void initState() {
@@ -33,10 +35,18 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadUser();
     _initNotificaciones();
     _cargarNotificaciones();
+    _startPolling();
+  }
+
+  void _startPolling() {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _cargarNotificaciones();
+    });
   }
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     _notificacionService.disconnect();
     super.dispose();
   }

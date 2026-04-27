@@ -149,6 +149,16 @@ class ClienteNotificacionService {
           especialidad: especialidad,
         );
         break;
+      case 'requiere_mas_evidencia':
+        titulo = 'Información requerida';
+        final mensajeSolicitud = message['mensaje_solicitud'] ?? message['mensaje'] ?? 'Necesitamos más información sobre tu incidente';
+        notifLocal.mostrarNotificacion(
+          id: incidenteId + 60000,
+          titulo: titulo,
+          cuerpo: mensajeSolicitud,
+          payload: 'requiere_info_$incidenteId',
+        );
+        break;
       default:
         return;
     }
