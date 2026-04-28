@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
 import 'services/notificacion_local_service.dart';
+import 'services/firebase_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  // Inicializar notificaciones locales (siempre funciona)
   final notifService = NotificacionLocalService();
   await notifService.inicializar();
   await notifService.solicitarPermisos();
-  
+
+  // Inicializar Firebase (puede fallar sin google-services.json válido)
+  final firebaseService = FirebaseService();
+  await firebaseService.inicializar();
+
   runApp(const AuxiaApp());
 }
 

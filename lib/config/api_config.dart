@@ -1,6 +1,6 @@
 class ApiConfig {
-  static const String defaultBaseUrl = 'http://192.168.0.6:8000';
-  static const String defaultWsUrl = 'ws://192.168.0.6:8000/ws';
+  static const String defaultBaseUrl = 'https://backend-parcial-1.onrender.com';
+  static const String defaultWsUrl = 'wss://backend-parcial-1.onrender.com/ws';
 
   static String baseUrl = defaultBaseUrl;
   static String wsUrl = defaultWsUrl;
@@ -62,5 +62,6 @@ class ApiConfig {
   static String get pagosUrl => '$apiUrl/pagos';
 
   // Notificacion endpoints
-  static String get misNotificacionesUrl => '$apiUrl/usuarios/notificacion/mis-notificaciones';
+  static String get misNotificacionesUrl =>
+      '$apiUrl/usuarios/notificacion/mis-notificaciones';
 }

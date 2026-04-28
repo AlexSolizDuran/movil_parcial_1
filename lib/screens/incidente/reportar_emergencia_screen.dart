@@ -1,9 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:record/record.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../services/incidente_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/vehiculo_service.dart';
@@ -11,7 +12,6 @@ import '../../models/vehiculo.dart';
 import '../../widgets/location_card.dart';
 import '../../widgets/vehicle_selector.dart';
 import '../../widgets/photo_evidence.dart';
-import '../../widgets/audio_evidence.dart';
 
 class ReportarEmergenciaScreen extends StatefulWidget {
   const ReportarEmergenciaScreen({super.key});
@@ -23,7 +23,6 @@ class ReportarEmergenciaScreen extends StatefulWidget {
 class _ReportarEmergenciaScreenState extends State<ReportarEmergenciaScreen> {
   final IncidenteService _incidenteService = IncidenteService();
   final ImagePicker _imagePicker = ImagePicker();
-  final AudioRecorder _audioRecorder = AudioRecorder();
 
   Position? _position;
   bool _isLoadingLocation = false;
@@ -31,10 +30,12 @@ class _ReportarEmergenciaScreenState extends State<ReportarEmergenciaScreen> {
 
   final TextEditingController _descripcionController = TextEditingController();
   List<XFile> _photos = [];
-  List<XFile> _audioFiles = [];
-  bool _isRecordingAudio = false;
   bool _isSubmitting = false;
   String? _errorMessage;
+
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
+  bool _speechEnabled = false;
 
   List<Vehiculo> _vehiculos = [];
   Vehiculo? _vehiculoSeleccionado;
@@ -45,13 +46,50 @@ class _ReportarEmergenciaScreenState extends State<ReportarEmergenciaScreen> {
     super.initState();
     _getLocation();
     _cargarVehiculos();
+    _initSpeech();
   }
 
   @override
   void dispose() {
     _descripcionController.dispose();
-    _audioRecorder.dispose();
     super.dispose();
+  }
+
+  Future<void> _initSpeech() async {
+    _speechEnabled = await _speech.initialize(
+      onStatus: (status) {
+        if (kDebugMode) print('Speech status: $status');
+      },
+      onError: (error) {
+        if (kDebugMode) print('Speech error: $error');
+      },
+    );
+    setState(() {});
+  }
+
+  Future<void> _toggleListening() async {
+    if (!_speechEnabled) {
+      _showError('Reconocimiento de voz no disponible');
+      return;
+    }
+
+    if (_isListening) {
+      await _speech.stop();
+      setState(() => _isListening = false);
+    } else {
+      setState(() => _isListening = true);
+      await _speech.listen(
+        onResult: (result) {
+          setState(() {
+            _descripcionController.text = result.recognizedWords;
+            _descripcionController.selection = TextSelection.fromPosition(
+              TextPosition(offset: _descripcionController.text.length),
+            );
+          });
+        },
+        localeId: 'es_ES',
+      );
+    }
   }
 
   Future<void> _cargarVehiculos() async {
@@ -119,21 +157,6 @@ class _ReportarEmergenciaScreenState extends State<ReportarEmergenciaScreen> {
     if (photo != null) setState(() => _photos.add(photo));
   }
 
-  Future<void> _startRecording() async {
-    if (!await _audioRecorder.hasPermission()) return;
-    final path = '${Directory.systemTemp.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
-    await _audioRecorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
-    setState(() => _isRecordingAudio = true);
-  }
-
-  Future<void> _stopRecording() async {
-    final path = await _audioRecorder.stop();
-    if (path != null) setState(() {
-      _isRecordingAudio = false;
-      _audioFiles.add(XFile(path));
-    });
-  }
-
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
@@ -169,22 +192,6 @@ class _ReportarEmergenciaScreenState extends State<ReportarEmergenciaScreen> {
         );
       }
 
-      for (final audio in _audioFiles) {
-        await _incidenteService.subirEvidencia(
-          incidenteId: incidente.id,
-          archivo: File(audio.path),
-          tipo: 'audio',
-        );
-      }
-
-      if (_descripcionController.text.isNotEmpty) {
-        await _incidenteService.subirEvidencia(
-          incidenteId: incidente.id,
-          tipo: 'texto',
-          contenido: _descripcionController.text,
-        );
-      }
-
       await _incidenteService.analizarIncidente(incidente.id);
 
       if (!mounted) return;
@@ -206,8 +213,6 @@ class _ReportarEmergenciaScreenState extends State<ReportarEmergenciaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reportar Emergencia'),
@@ -238,27 +243,46 @@ class _ReportarEmergenciaScreenState extends State<ReportarEmergenciaScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            TextField(
-              controller: _descripcionController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Describe brevemente qué pasó...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _descripcionController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      hintText: _isListening 
+                          ? 'Escuchando...' 
+                          : 'Describe brevemente qué pasó...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  children: [
+                    IconButton(
+                      onPressed: _speechEnabled ? _toggleListening : null,
+                      icon: Icon(
+                        _isListening ? Icons.stop : Icons.mic,
+                        color: _isListening ? Colors.red : Colors.blue,
+                      ),
+                      tooltip: _isListening ? 'Detener' : 'Dictar texto',
+                    ),
+                    if (_isListening)
+                      const Text(
+                        'Escuchando...',
+                        style: TextStyle(fontSize: 10, color: Colors.red),
+                      ),
+                  ],
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             PhotoEvidence(
               photos: _photos,
               onAddPhoto: _addPhoto,
               onRemovePhoto: (i) => setState(() => _photos.removeAt(i)),
-            ),
-            const SizedBox(height: 24),
-            AudioEvidence(
-              audioFiles: _audioFiles,
-              isRecording: _isRecordingAudio,
-              onStartRecording: _startRecording,
-              onStopRecording: _stopRecording,
-              onRemoveAudio: (i) => setState(() => _audioFiles.removeAt(i)),
             ),
             const SizedBox(height: 24),
             if (_errorMessage != null)

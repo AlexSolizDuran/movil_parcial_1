@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../models/incidente_tecnico.dart';
 import '../../services/tecnico_service.dart';
 
@@ -99,6 +98,10 @@ class _DetalleIncidenteTecnicoScreenState extends State<DetalleIncidenteTecnicoS
                   const SizedBox(height: 16),
                   if (widget.incidente.evidencias != null && widget.incidente.evidencias!.isNotEmpty) ...[
                     _buildEvidenciasCard(primaryColor, isDark),
+                    const SizedBox(height: 16),
+                  ],
+                  if (widget.incidente.historial != null && widget.incidente.historial!.isNotEmpty) ...[
+                    _buildHistorialCard(primaryColor, isDark),
                     const SizedBox(height: 16),
                   ],
                   _buildAccionButtons(context, primaryColor, isDark),
@@ -602,6 +605,81 @@ class _DetalleIncidenteTecnicoScreenState extends State<DetalleIncidenteTecnicoS
             ...widget.incidente.evidencias!.map((ev) => _buildEvidenciaItem(ev, isDark)),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHistorialCard(Color primaryColor, bool isDark) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.history, color: primaryColor),
+                const SizedBox(width: 8),
+                Text(
+                  'Historial (${widget.incidente.historial!.length})',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 16),
+            ...widget.incidente.historial!.map((h) => _buildHistorialItem(h, isDark, primaryColor)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistorialItem(HistoriaInfo historial, bool isDark, Color colorPrimario) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            margin: const EdgeInsets.only(top: 6, right: 12),
+            decoration: BoxDecoration(
+              color: colorPrimario,
+              shape: BoxShape.circle,
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (historial.titulo != null)
+                  Text(
+                    historial.titulo!,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                if (historial.descripcion != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    historial.descripcion!,
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  ),
+                ],
+                if (historial.fechaHora != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatDate(historial.fechaHora!),
+                    style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
